@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robopark Stock Exchange (RSE) - Advanced</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
+    <!-- Intro.js for Tutorial -->
+    <link rel="stylesheet" href="https://unpkg.com/intro.js/minified/introjs.min.css" />
+    <script src="https://unpkg.com/intro.js/minified/intro.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a1a;
+            color: #e0e0e0;
+        }
+        .glassmorphism {
+            background: rgba(16, 16, 32, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn { transition: background-color 0.3s ease, transform 0.2s ease; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary { background-color: #4f46e5; }
+        .btn-primary:hover { background-color: #4338ca; }
+        .btn-secondary { background-color: #be123c; }
+        .btn-secondary:hover { background-color: #9f1239; }
+        .btn-outline { border: 1px solid #4f46e5; color: #4f46e5; }
+        .btn-outline:hover { background-color: #4f46e5; color: white; }
+        .price-up { color: #22c55e; }
+        .price-down { color: #ef4444; }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .fund-card { cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .fund-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2); }
+        /* Intro.js Customizations */
+        .introjs-tooltip {
+            background-color: #1e1b4b;
+            color: #e0e0e0;
+            border: 1px solid #4f46e5;
+        }
+        .introjs-button:not(.introjs-disabled) {
+            background-color: #4f46e5;
+            text-shadow: none;
+            color: white !important;
+        }
+        .introjs-disabled {
+            color: #a1a1aa !important; /* Lighter gray for better visibility */
+            border-color: #3f3f46 !important;
+            background-color: #27272a !important;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Initial Tutorial Modal -->
+    <div id="tutorial-start-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+        <div class="glassmorphism rounded-lg p-8 shadow-2xl max-w-md w-full text-center">
+            <h3 class="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500">Welcome to the RSE!</h3>
+            <p class="mb-6">Would you like a quick tutorial on how to trade, or do you want to jump right into the live market?</p>
+            <div class="flex gap-4">
+                <button id="start-tutorial-flow-btn" class="btn btn-primary text-white font-bold py-3 px-6 rounded-lg w-full">Start Tutorial</button>
+                <button id="skip-tutorial-btn" class="btn btn-outline font-bold py-3 px-6 rounded-lg w-full">Skip to Live Trading</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 md:p-6 lg:p-8 max-w-7xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500 mb-2">Robopark Stock Exchange (RSE)</h1>
+            <p class="text-lg text-indigo-200">Invest your XP and master the market of innovation!</p>
+        </header>
+
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+            <div id="xp-balance-wrapper" class="glassmorphism rounded-xl p-4 flex-grow w-full md:w-auto flex justify-between items-center shadow-lg" data-step="1" data-intro="This is your XP Balance. Use it to buy shares in Tech Funds.">
+                <h2 class="text-xl font-semibold">Your XP Balance:</h2>
+                <span id="xp-balance" class="text-2xl font-bold text-purple-300">10000.00 XP</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2" id="market-wrapper" data-step="2" data-intro="This is the market. Click on any Tech Fund to see more details and trade.">
+                <h2 class="text-3xl font-bold mb-4 pb-2 border-b-2 border-indigo-500">Market - Tech Funds</h2>
+                <div id="market-funds" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Fund summary cards will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <div id="portfolio-wrapper" data-step="7" data-intro="Finally, your portfolio shows the funds you own and your total profit or loss. Good luck!">
+                <h2 class="text-3xl font-bold mb-4 pb-2 border-b-2 border-purple-500">My Portfolio</h2>
+                <div id="portfolio-funds" class="glassmorphism rounded-xl p-4 space-y-4 shadow-lg min-h-[200px]">
+                    <p id="empty-portfolio-message" class="text-gray-400 text-center pt-8">Your portfolio is empty. Buy some Tech Funds to get started!</p>
+                </div>
+                <h2 class="text-2xl font-bold mt-6 mb-2 pb-2 border-b-2 border-purple-500">Pending Limit Orders</h2>
+                <div id="limit-orders-list" class="glassmorphism rounded-xl p-4 space-y-2 shadow-lg min-h-[100px]">
+                     <p id="empty-orders-message" class="text-gray-400 text-center pt-4">No pending limit orders.</p>
+                </div>
+                <!-- New Stop-Loss Orders List -->
+                <h2 class="text-2xl font-bold mt-6 mb-2 pb-2 border-b-2 border-red-500">Pending Stop-Loss Orders</h2>
+                <div id="stop-loss-orders-list" class="glassmorphism rounded-xl p-4 space-y-2 shadow-lg min-h-[100px]">
+                    <p id="empty-stop-loss-message" class="text-gray-400 text-center pt-4">No pending stop-loss orders.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Fund Modal with Candlestick Chart -->
+    <div id="fund-detail-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-overlay overflow-y-auto p-4">
+        <div class="glassmorphism rounded-lg p-6 shadow-2xl max-w-3xl w-full m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-fund-name" class="text-3xl font-bold"></h3>
+                <button id="modal-close-btn" class="text-2xl text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div class="h-64 mb-4" data-step="3" data-intro="This chart shows the fund's recent price history.">
+                <canvas id="candlestick-chart"></canvas>
+            </div>
+             <!-- Market Order Section -->
+            <div class="flex flex-col md:flex-row gap-4 items-center justify-center p-4 border-b border-gray-700 mb-4" data-step="4" data-intro="To make a trade now, enter a quantity and click 'Buy' or 'Sell'. This is a Market Order.">
+                <div class="text-center">
+                    <p class="text-gray-400">Current Price</p>
+                    <p id="modal-current-price" class="text-2xl font-bold"></p>
+                </div>
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <input type="number" id="modal-amount" class="bg-gray-900 border border-gray-600 rounded-md p-2 w-24 text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none" min="1" placeholder="Qty">
+                    <button id="modal-buy-btn" class="btn btn-primary text-white font-bold py-2 px-6 rounded-lg flex-grow">Buy</button>
+                    <button id="modal-sell-btn" class="btn btn-secondary text-white font-bold py-2 px-6 rounded-lg flex-grow">Sell</button>
+                </div>
+                 <button id="learning-hub-btn" class="btn btn-outline font-bold py-2 px-6 rounded-lg" data-step="6" data-intro="Click here to learn about more advanced trading concepts like Stop-Loss orders.">Learning Hub</button>
+            </div>
+            <!-- Limit Order Section -->
+            <div class="p-4 rounded-lg bg-black bg-opacity-20" data-step="5" data-intro="To trade at a future price, set a Limit Order. Enter your target price and quantity, then set the order.">
+                 <h4 class="text-xl font-bold text-center mb-3">Set Limit Order</h4>
+                 <div class="flex flex-col md:flex-row gap-4 items-center justify-center">
+                     <input type="number" id="limit-price" class="bg-gray-900 border border-gray-600 rounded-md p-2 w-full md:w-32 text-center" placeholder="Target Price">
+                     <input type="number" id="limit-amount" class="bg-gray-900 border border-gray-600 rounded-md p-2 w-full md:w-24 text-center" min="1" placeholder="Qty">
+                     <button id="limit-buy-btn" class="btn btn-primary text-white font-bold py-2 px-6 rounded-lg w-full md:w-auto">Set Buy</button>
+                     <button id="limit-sell-btn" class="btn btn-secondary text-white font-bold py-2 px-6 rounded-lg w-full md:w-auto">Set Sell</button>
+                 </div>
+            </div>
+            <!-- Stop-Loss Order Section -->
+            <div id="stop-loss-section" class="p-4 rounded-lg bg-black bg-opacity-20 mt-4 hidden">
+                <h4 class="text-xl font-bold text-center mb-3 text-red-400">Set Stop-Loss Order</h4>
+                <p class="text-xs text-center text-gray-400 mb-3">Sell automatically if the price drops to your target. You own <span id="stop-loss-owned-shares" class="font-bold">0</span> shares.</p>
+                <div class="flex flex-col md:flex-row gap-4 items-center justify-center">
+                    <input type="number" id="stop-loss-price" class="bg-gray-900 border border-gray-600 rounded-md p-2 w-full md:w-32 text-center" placeholder="Stop Price">
+                    <input type="number" id="stop-loss-amount" class="bg-gray-900 border border-gray-600 rounded-md p-2 w-full md:w-24 text-center" min="1" placeholder="Qty">
+                    <button id="set-stop-loss-btn" class="btn btn-secondary text-white font-bold py-2 px-6 rounded-lg w-full md:w-auto">Set Stop-Loss</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Learning Hub Modal -->
+    <div id="learning-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-overlay overflow-y-auto p-4">
+        <div class="glassmorphism rounded-lg p-6 shadow-2xl max-w-2xl w-full m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500">Trading Learning Hub</h3>
+                <button id="learning-modal-close-btn" class="text-2xl text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div class="space-y-6 text-left max-h-[70vh] overflow-y-auto pr-2">
+                <div>
+                    <h4 class="text-xl font-bold text-indigo-300 mb-2">Market Order</h4>
+                    <p class="text-gray-300">A market order is the simplest type of trade. It's an instruction to buy or sell a fund **immediately** at the best available current price. It's fast and almost always goes through, but the price you get might be slightly different from what you saw when you clicked the button.</p>
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold text-indigo-300 mb-2">Limit Order</h4>
+                    <p class="text-gray-300">A limit order gives you more control. You set a specific price, and the trade will only happen if the fund's price reaches your target price or better. For a **buy** limit order, it will execute at your price or lower. For a **sell** limit order, it will execute at your price or higher. This is useful for trying to get a better deal, but your order might never be filled if the price doesn't reach your target.</p>
+                </div>
+                 <div>
+                    <h4 class="text-xl font-bold text-indigo-300 mb-2">Stop-Loss Order</h4>
+                    <p class="text-gray-300">A stop-loss is a defensive order used to limit your potential losses on a fund you already own. You set a "stop price" **below** the current market price. If the fund's price drops to your stop price, it automatically triggers a market order to sell your shares. This helps protect you from big losses if the market turns against you.</p>
+                </div>
+                 <div>
+                    <h4 class="text-xl font-bold text-indigo-300 mb-2">Buy-Stop Order</h4>
+                    <p class="text-gray-300">A buy-stop order is an order to buy a fund, but only after it reaches a "stop price" that is **higher** than the current market price. Traders use this to enter a position once a fund's price starts to show strong upward momentum, hoping to ride the trend. It's the opposite of a buy-limit order, where you hope to buy at a lower price.</p>
+                     <p class="text-xs text-gray-400 mt-1">Note: Buy-stop orders are an advanced concept and not an active feature in this version of the RSE.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple Notification Modal -->
+    <div id="notification-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-overlay">
+         <div class="glassmorphism rounded-lg p-8 shadow-2xl max-w-sm w-full text-center">
+            <h3 id="notification-title" class="text-2xl font-bold mb-4"></h3>
+            <p id="notification-message" class="mb-6"></p>
+            <button id="notification-close-btn" class="btn btn-primary text-white font-bold py-2 px-6 rounded-lg w-full">Close</button>
+        </div>
+    </div>
+
+    <!-- Post-Purchase Stop-Loss Prompt Modal -->
+    <div id="stop-loss-prompt-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-overlay">
+        <div class="glassmorphism rounded-lg p-8 shadow-2xl max-w-md w-full text-center">
+            <h3 id="stop-loss-prompt-title" class="text-2xl font-bold mb-4 text-green-400">Purchase Successful!</h3>
+            <p id="stop-loss-prompt-message" class="mb-4"></p>
+            <div class="space-y-4">
+                <div>
+                    <label for="prompt-stop-loss-price" class="block text-sm font-medium text-gray-300 mb-1 text-left">Set a Stop Price</label>
+                    <input type="number" id="prompt-stop-loss-price" class="bg-gray-900 border border-gray-600 rounded-md p-2 w-full text-center" placeholder="e.g., 95.00">
+                </div>
+                <input type="hidden" id="prompt-stop-loss-fund-id">
+                <input type="hidden" id="prompt-stop-loss-amount">
+                <div class="flex gap-4">
+                    <button id="prompt-set-stop-loss-btn" class="btn btn-secondary text-white font-bold py-2 px-6 rounded-lg w-full">Set Stop-Loss</button>
+                    <button id="prompt-skip-stop-loss-btn" class="btn btn-outline font-bold py-2 px-6 rounded-lg w-full">Skip</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let userXP;
+            let candlestickChartInstance = null;
+            let activeFundIdInModal = null;
+            let pendingLimitOrders = [];
+            let pendingStopLossOrders = []; 
+            let funds = [];
+            let marketSimulationInterval = null;
+            let appState = 'TUTORIAL_PROMPT'; // TUTORIAL_PROMPT, TUTORIAL_RUNNING, LIVE_TRADING
+
+            // --- DATA INITIALIZATION ---
+            function generateCandlestickData(basePrice, count, isVolatile) {
+                let data = [];
+                let lastClose = basePrice;
+                for (let i = 0; i < count; i++) {
+                    const volatility = isVolatile ? 0.03 : 0.005;
+                    const open = lastClose * (1 + (Math.random() - 0.5) * volatility / 2);
+                    const close = open * (1 + (Math.random() - 0.5) * volatility);
+                    const high = Math.max(open, close) * (1 + Math.random() * volatility / 2);
+                    const low = Math.min(open, close) * (1 - Math.random() * volatility / 2);
+                    data.push({ x: new Date().getTime() - (count - i) * 3000, o: open, h: high, l: low, c: close });
+                    lastClose = close;
+                }
+                return data;
+            }
+
+            const getInitialFundsState = (isVolatile = true) => [
+                { id: 0, name: 'Mechanical Innovations', symbol: 'MECH', ohlc: generateCandlestickData(100.00, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 1, name: 'IoT Solutions', symbol: 'IOTS', ohlc: generateCandlestickData(120.50, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 2, name: 'Computer Science Core', symbol: 'COMP', ohlc: generateCandlestickData(150.25, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 3, name: 'AI Futures', symbol: 'AIF', ohlc: generateCandlestickData(250.00, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 4, name: 'Autonomous Vehicles', symbol: 'AUTO', ohlc: generateCandlestickData(180.75, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 5, name: 'Drone Dynamics', symbol: 'DRON', ohlc: generateCandlestickData(95.50, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 6, name: 'EV Technologies', symbol: 'EVT', ohlc: generateCandlestickData(135.00, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 7, name: 'Robotics & Automation', symbol: 'ROBO', ohlc: generateCandlestickData(210.00, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 8, name: 'Digital Manufacturing', symbol: 'MANU', ohlc: generateCandlestickData(88.20, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 9, name: 'AR/VR Realities', symbol: 'VIRT', ohlc: generateCandlestickData(165.40, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+                { id: 10, name: 'Electronics & Circuits', symbol: 'ELEC', ohlc: generateCandlestickData(110.80, 50, isVolatile), sharesOwned: 0, totalCost: 0 },
+            ];
+            
+            // --- DOM ELEMENT REFERENCES ---
+            const xpBalanceEl = document.getElementById('xp-balance');
+            const marketFundsEl = document.getElementById('market-funds');
+            const portfolioFundsEl = document.getElementById('portfolio-funds');
+            const limitOrdersListEl = document.getElementById('limit-orders-list');
+            const stopLossOrdersListEl = document.getElementById('stop-loss-orders-list');
+            const fundDetailModal = document.getElementById('fund-detail-modal');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            const modalFundName = document.getElementById('modal-fund-name');
+            const modalCurrentPrice = document.getElementById('modal-current-price');
+            const modalBuyBtn = document.getElementById('modal-buy-btn');
+            const modalSellBtn = document.getElementById('modal-sell-btn');
+            const limitBuyBtn = document.getElementById('limit-buy-btn');
+            const limitSellBtn = document.getElementById('limit-sell-btn');
+            const setStopLossBtn = document.getElementById('set-stop-loss-btn');
+            const stopLossSection = document.getElementById('stop-loss-section');
+            const stopLossOwnedSharesEl = document.getElementById('stop-loss-owned-shares');
+            const notificationModal = document.getElementById('notification-modal');
+            const notificationTitle = document.getElementById('notification-title');
+            const notificationMessage = document.getElementById('notification-message');
+            const notificationCloseBtn = document.getElementById('notification-close-btn');
+            const tutorialStartModal = document.getElementById('tutorial-start-modal');
+            const startTutorialFlowBtn = document.getElementById('start-tutorial-flow-btn');
+            const skipTutorialBtn = document.getElementById('skip-tutorial-btn');
+            const learningHubBtn = document.getElementById('learning-hub-btn');
+            const learningModal = document.getElementById('learning-modal');
+            const learningModalCloseBtn = document.getElementById('learning-modal-close-btn');
+            // New refs for the prompt modal
+            const stopLossPromptModal = document.getElementById('stop-loss-prompt-modal');
+            const stopLossPromptMessage = document.getElementById('stop-loss-prompt-message');
+            const promptStopLossPriceEl = document.getElementById('prompt-stop-loss-price');
+            const promptStopLossFundIdEl = document.getElementById('prompt-stop-loss-fund-id');
+            const promptStopLossAmountEl = document.getElementById('prompt-stop-loss-amount');
+            const promptSetStopLossBtn = document.getElementById('prompt-set-stop-loss-btn');
+            const promptSkipStopLossBtn = document.getElementById('prompt-skip-stop-loss-btn');
+
+            // --- UI RENDERING ---
+            function renderMarket() {
+                marketFundsEl.innerHTML = '';
+                funds.forEach(fund => {
+                    const currentPrice = fund.ohlc[fund.ohlc.length - 1].c;
+                    const previousPrice = fund.ohlc[fund.ohlc.length - 2].c;
+                    const trend = currentPrice >= previousPrice ? 'up' : 'down';
+                    
+                    const fundCard = `
+                        <div class="glassmorphism rounded-xl p-4 shadow-lg fund-card" onclick="openFundDetail(${fund.id})">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="text-lg font-bold">${fund.name}</h3>
+                                    <p class="text-sm text-gray-400">${fund.symbol}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-lg font-semibold price-${trend}">${currentPrice.toFixed(2)} XP</p>
+                                    <p class="text-sm price-${trend}">${(currentPrice - previousPrice).toFixed(2)} (${((currentPrice - previousPrice) / previousPrice * 100).toFixed(2)}%)</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    marketFundsEl.innerHTML += fundCard;
+                });
+            }
+
+            function renderPortfolio() {
+                const ownedFunds = funds.filter(f => f.sharesOwned > 0);
+                if (ownedFunds.length > 0) {
+                    portfolioFundsEl.innerHTML = '';
+                    let totalPortfolioValue = 0;
+                    let totalPortfolioCost = 0;
+
+                    ownedFunds.forEach(fund => {
+                        const currentPrice = fund.ohlc[fund.ohlc.length - 1].c;
+                        const currentValue = currentPrice * fund.sharesOwned;
+                        const gainLoss = currentValue - fund.totalCost;
+                        const gainLossTrend = gainLoss >= 0 ? 'up' : 'down';
+                        
+                        totalPortfolioValue += currentValue;
+                        totalPortfolioCost += fund.totalCost;
+
+                        portfolioFundsEl.innerHTML += `
+                            <div class="border-b border-gray-700 pb-3 mb-3">
+                                <div class="flex justify-between items-center">
+                                    <h4 class="font-bold text-lg">${fund.name}</h4>
+                                    <p class="font-semibold">${fund.sharesOwned} Shares</p>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <p class="text-gray-400">Bought Value:</p>
+                                    <p class="text-gray-300">${fund.totalCost.toFixed(2)} XP</p>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <p class="text-gray-400">Current Value:</p>
+                                    <p class="text-indigo-300">${currentValue.toFixed(2)} XP</p>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <p class="text-gray-400">Gain/Loss:</p>
+                                    <p class="font-semibold price-${gainLossTrend}">${gainLoss.toFixed(2)} XP</p>
+                                </div>
+                            </div>`;
+                    });
+
+                    const totalGainLoss = totalPortfolioValue - totalPortfolioCost;
+                    const totalGainLossTrend = totalGainLoss >= 0 ? 'up' : 'down';
+
+                    portfolioFundsEl.innerHTML += `
+                        <div class="pt-3 mt-3 border-t-2 border-purple-500">
+                            <div class="flex justify-between items-center text-lg mb-1">
+                                <h4 class="font-bold">Total Value:</h4>
+                                <p class="font-bold text-purple-300">${totalPortfolioValue.toFixed(2)} XP</p>
+                            </div>
+                            <div class="flex justify-between items-center text-md">
+                                <h4 class="font-bold">Total Gain/Loss:</h4>
+                                <p class="font-bold price-${totalGainLossTrend}">${totalGainLoss.toFixed(2)} XP</p>
+                            </div>
+                        </div>`;
+                } else {
+                    portfolioFundsEl.innerHTML = `<p id="empty-portfolio-message" class="text-gray-400 text-center pt-8">Your portfolio is empty. Buy some Tech Funds to get started!</p>`;
+                }
+            }
+            
+            function renderLimitOrders() {
+                if (pendingLimitOrders.length > 0) {
+                    limitOrdersListEl.innerHTML = '';
+                    pendingLimitOrders.forEach((order, index) => {
+                        const fund = funds.find(f => f.id === order.fundId);
+                        const orderTypeClass = order.type === 'buy' ? 'text-green-400' : 'text-red-400';
+                        limitOrdersListEl.innerHTML += `
+                            <div class="flex justify-between items-center text-sm">
+                                <div>
+                                    <span class="font-bold ${orderTypeClass}">${order.type.toUpperCase()}</span> ${order.amount} ${fund.symbol} @ ${order.price.toFixed(2)}
+                                </div>
+                                <button onclick="cancelLimitOrder(${index})" class="text-xs text-gray-400 hover:text-white">&times; Cancel</button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    limitOrdersListEl.innerHTML = `<p id="empty-orders-message" class="text-gray-400 text-center pt-4">No pending limit orders.</p>`;
+                }
+            }
+
+            function renderStopLossOrders() {
+                if (pendingStopLossOrders.length > 0) {
+                    stopLossOrdersListEl.innerHTML = '';
+                    pendingStopLossOrders.forEach((order, index) => {
+                        const fund = funds.find(f => f.id === order.fundId);
+                        stopLossOrdersListEl.innerHTML += `
+                            <div class="flex justify-between items-center text-sm">
+                                <div>
+                                    <span class="font-bold text-red-400">SELL</span> ${order.amount} ${fund.symbol} if price drops to ${order.stopPrice.toFixed(2)}
+                                </div>
+                                <button onclick="cancelStopLossOrder(${index})" class="text-xs text-gray-400 hover:text-white">&times; Cancel</button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    stopLossOrdersListEl.innerHTML = `<p id="empty-stop-loss-message" class="text-gray-400 text-center pt-4">No pending stop-loss orders.</p>`;
+                }
+            }
+
+            function updateXPDisplay() {
+                xpBalanceEl.textContent = `${userXP.toFixed(2)} XP`;
+            }
+
+            // --- MODAL & CHART LOGIC ---
+            window.openFundDetail = (fundId) => {
+                activeFundIdInModal = fundId;
+                const fund = funds.find(f => f.id === fundId);
+                modalFundName.textContent = `${fund.name} (${fund.symbol})`;
+                const currentPrice = fund.ohlc[fund.ohlc.length - 1].c;
+                modalCurrentPrice.textContent = `${currentPrice.toFixed(2)} XP`;
+                
+                modalBuyBtn.onclick = () => buyShares(fundId, 'modal-amount');
+                modalSellBtn.onclick = () => sellShares(fundId, 'modal-amount');
+                limitBuyBtn.onclick = () => setLimitOrder(fundId, 'buy');
+                limitSellBtn.onclick = () => setLimitOrder(fundId, 'sell');
+                setStopLossBtn.onclick = () => setStopLossOrderFromModal(fundId);
+
+                if (fund.sharesOwned > 0) {
+                    stopLossOwnedSharesEl.textContent = fund.sharesOwned;
+                    stopLossSection.style.display = 'block';
+                } else {
+                    stopLossSection.style.display = 'none';
+                }
+                
+                fundDetailModal.style.display = 'flex';
+                renderCandlestickChart(fund);
+            };
+
+            modalCloseBtn.addEventListener('click', () => {
+                fundDetailModal.style.display = 'none';
+                if (candlestickChartInstance) {
+                    candlestickChartInstance.destroy();
+                    candlestickChartInstance = null;
+                }
+                activeFundIdInModal = null;
+            });
+            
+            function calculateSMA(data, period) {
+                let sma = [];
+                for (let i = period - 1; i < data.length; i++) {
+                    const subset = data.slice(i - period + 1, i + 1);
+                    const sum = subset.reduce((acc, val) => acc + val.c, 0);
+                    sma.push({x: data[i].x, y: sum / period});
+                }
+                return sma;
+            }
+
+            function renderCandlestickChart(fund) {
+                const ctx = document.getElementById('candlestick-chart').getContext('2d');
+                if (candlestickChartInstance) {
+                    candlestickChartInstance.destroy();
+                }
+                
+                const smaData = calculateSMA(fund.ohlc, 10);
+
+                candlestickChartInstance = new Chart(ctx, {
+                    type: 'candlestick',
+                    data: {
+                        datasets: [{
+                            label: `${fund.name} Price`,
+                            data: fund.ohlc
+                        }, {
+                            type: 'line',
+                            label: '10-Period SMA',
+                            data: smaData,
+                            borderColor: 'rgba(255, 165, 0, 0.7)',
+                            borderWidth: 1,
+                            pointRadius: 0,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'second' },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#9ca3af' }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#9ca3af', callback: value => `${value.toFixed(0)} XP` }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // --- TRADING LOGIC ---
+            function buyShares(fundId, inputId) {
+                const fund = funds.find(f => f.id === fundId);
+                const amountInput = document.getElementById(inputId);
+                const amount = parseInt(amountInput.value);
+                const currentPrice = fund.ohlc[fund.ohlc.length - 1].c;
+
+                if (isNaN(amount) || amount <= 0) {
+                    showNotification('Invalid Amount', 'Please enter a positive number of shares.', 'error'); return;
+                }
+                const totalCost = currentPrice * amount;
+                if (totalCost > userXP) {
+                    showNotification('Insufficient XP', `You do not have enough XP to complete this purchase.`, 'error'); return;
+                }
+                // --- Execute Purchase ---
+                userXP -= totalCost;
+                fund.sharesOwned += amount;
+                fund.totalCost += totalCost;
+                
+                updateXPDisplay();
+                renderPortfolio();
+                amountInput.value = '';
+
+                // --- Post-Purchase Flow ---
+                if (appState === 'LIVE_TRADING') {
+                    promptStopLossFundIdEl.value = fundId;
+                    promptStopLossAmountEl.value = amount;
+                    stopLossPromptMessage.textContent = `You bought ${amount} share(s) of ${fund.name}. Would you like to set a stop-loss order to protect your investment?`;
+                    stopLossPromptModal.style.display = 'flex';
+                } else {
+                    showNotification('Purchase Successful', `Bought ${amount} share(s) of ${fund.name}.`, 'success');
+                }
+            }
+
+            function sellShares(fundId, inputId) {
+                const fund = funds.find(f => f.id === fundId);
+                const amountInput = document.getElementById(inputId);
+                const amount = parseInt(amountInput.value);
+                const currentPrice = fund.ohlc[fund.ohlc.length - 1].c;
+
+                if (isNaN(amount) || amount <= 0) {
+                    showNotification('Invalid Amount', 'Please enter a positive number of shares.', 'error'); return;
+                }
+                if (amount > fund.sharesOwned) {
+                    showNotification('Insufficient Shares', `You only own ${fund.sharesOwned} share(s).`, 'error'); return;
+                }
+
+                const costPerShare = fund.totalCost / fund.sharesOwned;
+                fund.totalCost -= amount * costPerShare;
+
+                const totalSale = currentPrice * amount;
+                userXP += totalSale;
+                fund.sharesOwned -= amount;
+
+                if (fund.sharesOwned === 0) {
+                    fund.totalCost = 0;
+                }
+                
+                updateXPDisplay();
+                renderPortfolio();
+                amountInput.value = '';
+                showNotification('Sale Successful', `Sold ${amount} share(s) of ${fund.name}.`, 'success');
+            }
+            
+            // --- LIMIT & STOP-LOSS ORDER LOGIC ---
+            function setLimitOrder(fundId, type) {
+                const priceInput = document.getElementById('limit-price');
+                const amountInput = document.getElementById('limit-amount');
+                const price = parseFloat(priceInput.value);
+                const amount = parseInt(amountInput.value);
+
+                if (isNaN(price) || price <= 0 || isNaN(amount) || amount <= 0) {
+                    showNotification('Invalid Order', 'Please enter a valid target price and quantity.', 'error'); return;
+                }
+                
+                pendingLimitOrders.push({ fundId, type, price, amount });
+                renderLimitOrders();
+                priceInput.value = '';
+                amountInput.value = '';
+                showNotification('Order Set', `Your limit ${type} order has been placed.`, 'success');
+            }
+
+            function createStopLossOrder(fundId, amount, stopPrice) {
+                const fund = funds.find(f => f.id === fundId);
+                const currentPrice = fund.ohlc[fund.ohlc.length - 1].c;
+
+                if (isNaN(stopPrice) || stopPrice <= 0) {
+                    showNotification('Invalid Price', 'Please enter a valid stop price.', 'error');
+                    return false;
+                }
+                 if (isNaN(amount) || amount <= 0) {
+                    showNotification('Invalid Quantity', 'Please enter a valid quantity for the stop-loss order.', 'error');
+                    return false;
+                }
+                if (stopPrice >= currentPrice) {
+                    showNotification('Invalid Price', `Stop-loss price must be below the current market price of ${currentPrice.toFixed(2)}.`, 'error');
+                    return false;
+                }
+                
+                const totalStopLossForFund = pendingStopLossOrders
+                    .filter(o => o.fundId === fundId)
+                    .reduce((sum, o) => sum + o.amount, 0);
+
+                if (amount + totalStopLossForFund > fund.sharesOwned) {
+                    showNotification('Order Failed', `You cannot set stop-loss orders for more shares than you own (${fund.sharesOwned}).`, 'error');
+                    return false;
+                }
+
+                pendingStopLossOrders.push({ fundId, stopPrice, amount });
+                renderStopLossOrders();
+                showNotification('Stop-Loss Set', 'Your stop-loss order has been placed.', 'success');
+                return true;
+            }
+
+            function setStopLossOrderFromModal(fundId) {
+                const priceInput = document.getElementById('stop-loss-price');
+                const amountInput = document.getElementById('stop-loss-amount');
+                const stopPrice = parseFloat(priceInput.value);
+                const amount = parseInt(amountInput.value);
+                
+                if (createStopLossOrder(fundId, amount, stopPrice)) {
+                    priceInput.value = '';
+                    amountInput.value = '';
+                }
+            }
+            
+            window.cancelLimitOrder = (index) => {
+                pendingLimitOrders.splice(index, 1);
+                renderLimitOrders();
+                showNotification('Order Cancelled', 'Your pending limit order has been cancelled.', 'success');
+            }
+
+            window.cancelStopLossOrder = (index) => {
+                pendingStopLossOrders.splice(index, 1);
+                renderStopLossOrders();
+                showNotification('Order Cancelled', 'Your pending stop-loss order has been cancelled.', 'success');
+            }
+            
+            function checkLimitOrders() {
+                if (appState !== 'LIVE_TRADING') return;
+                const executedOrders = [];
+                pendingLimitOrders.forEach((order, index) => {
+                    const fund = funds.find(f => f.id === order.fundId);
+                    const currentPrice = fund.ohlc[fund.ohlc.length - 1].c;
+                    let executed = false;
+
+                    if (order.type === 'buy' && currentPrice <= order.price) {
+                        const totalCost = order.price * order.amount;
+                        if (userXP >= totalCost) {
+                            userXP -= totalCost;
+                            fund.sharesOwned += order.amount;
+                            fund.totalCost += totalCost;
+                            showNotification('Limit Buy Executed', `Bought ${order.amount} ${fund.symbol} @ ${order.price.toFixed(2)}`, 'success');
+                            executed = true;
+                        }
+                    } else if (order.type === 'sell' && currentPrice >= order.price) {
+                        if (fund.sharesOwned >= order.amount) {
+                            const costPerShare = fund.sharesOwned > 0 ? fund.totalCost / fund.sharesOwned : 0;
+                            fund.totalCost -= order.amount * costPerShare;
+                            userXP += order.price * order.amount;
+                            fund.sharesOwned -= order.amount;
+                            if (fund.sharesOwned === 0) fund.totalCost = 0;
+                            showNotification('Limit Sell Executed', `Sold ${order.amount} ${fund.symbol} @ ${order.price.toFixed(2)}`, 'success');
+                            executed = true;
+                        }
+                    }
+                    
+                    if (executed) {
+                        executedOrders.push(index);
+                    }
+                });
+
+                if (executedOrders.length > 0) {
+                    for (let i = executedOrders.length - 1; i >= 0; i--) {
+                        pendingLimitOrders.splice(executedOrders[i], 1);
+                    }
+                    renderLimitOrders();
+                    renderPortfolio();
+                    updateXPDisplay();
+                }
+            }
+
+            function checkStopLossOrders() {
+                if (appState !== 'LIVE_TRADING') return;
+                const executedOrders = [];
+                pendingStopLossOrders.forEach((order, index) => {
+                    const fund = funds.find(f => f.id === order.fundId);
+                    const currentPrice = fund.ohlc[fund.ohlc.length - 1].c;
+                    
+                    if (currentPrice <= order.stopPrice && fund.sharesOwned >= order.amount) {
+                        const costPerShare = fund.sharesOwned > 0 ? fund.totalCost / fund.sharesOwned : 0;
+                        fund.totalCost -= order.amount * costPerShare;
+                        userXP += currentPrice * order.amount;
+                        fund.sharesOwned -= order.amount;
+                        if (fund.sharesOwned === 0) fund.totalCost = 0;
+                        
+                        showNotification('Stop-Loss Executed', `Sold ${order.amount} ${fund.symbol} @ ${currentPrice.toFixed(2)}`, 'success');
+                        executedOrders.push(index);
+                    }
+                });
+
+                if (executedOrders.length > 0) {
+                    for (let i = executedOrders.length - 1; i >= 0; i--) {
+                        pendingStopLossOrders.splice(executedOrders[i], 1);
+                    }
+                    renderStopLossOrders();
+                    renderPortfolio();
+                    updateXPDisplay();
+                }
+            }
+
+
+            // --- MARKET SIMULATION ---
+            function simulateMarket() {
+                funds.forEach(fund => {
+                    const lastBar = fund.ohlc[fund.ohlc.length - 1];
+                    const open = lastBar.c;
+                    const close = open * (1 + (Math.random() - 0.5) * 0.03);
+                    const high = Math.max(open, close) * (1 + Math.random() * 0.01);
+                    const low = Math.min(open, close) * (1 - Math.random() * 0.01);
+                    fund.ohlc.push({ x: new Date().getTime(), o: open, h: high, l: low, c: close });
+                    if (fund.ohlc.length > 50) {
+                        fund.ohlc.shift();
+                    }
+                });
+                
+                checkLimitOrders();
+                checkStopLossOrders();
+                renderMarket();
+                renderPortfolio();
+
+                if (fundDetailModal.style.display === 'flex' && candlestickChartInstance && activeFundIdInModal !== null) {
+                    const fund = funds.find(f => f.id === activeFundIdInModal);
+                    if (fund) {
+                        candlestickChartInstance.data.datasets[0].data = fund.ohlc;
+                        candlestickChartInstance.data.datasets[1].data = calculateSMA(fund.ohlc, 10);
+                        candlestickChartInstance.update('none');
+                        modalCurrentPrice.textContent = `${fund.ohlc[fund.ohlc.length - 1].c.toFixed(2)} XP`;
+                        if (fund.sharesOwned > 0) {
+                           stopLossOwnedSharesEl.textContent = fund.sharesOwned;
+                           stopLossSection.style.display = 'block';
+                        } else {
+                           stopLossSection.style.display = 'none';
+                        }
+                    }
+                }
+            }
+
+            // --- NOTIFICATION MODAL ---
+            function showNotification(title, message, type) {
+                notificationTitle.textContent = title;
+                notificationMessage.textContent = message;
+                notificationTitle.className = 'text-2xl font-bold mb-4';
+                if(type === 'success') notificationTitle.classList.add('text-green-400');
+                else if(type === 'error') notificationTitle.classList.add('text-red-400');
+                notificationModal.style.display = 'flex';
+            }
+            notificationCloseBtn.onclick = () => notificationModal.style.display = 'none';
+
+            // --- APP STATE & FLOW CONTROL ---
+            function startTutorial() {
+                appState = 'TUTORIAL_RUNNING';
+                tutorialStartModal.style.display = 'none';
+                
+                userXP = 1000;
+                funds = getInitialFundsState(false);
+                pendingLimitOrders = [];
+                pendingStopLossOrders = [];
+                
+                updateAllUI();
+                
+                const intro = introJs().setOptions({
+                    steps: [
+                        { element: '#xp-balance-wrapper', intro: 'This is your temporary tutorial XP. Let\'s make a trade!' },
+                        { element: '#market-wrapper', intro: 'This is the market. The prices are stable for the tutorial.' },
+                        { element: document.querySelector('.fund-card'), intro: 'Click on any fund card to open the detailed trading view.' },
+                        { element: '#fund-detail-modal', intro: 'This is the detailed view. It shows the fund\'s price history.', position: 'bottom'},
+                        { element: '[data-step="4"]', intro: 'To make a trade now, enter a quantity and click \'Buy\' or \'Sell\'. This is a Market Order.'},
+                        { element: '[data-step="5"]', intro: 'To trade at a future price, set a Limit Order. Enter your target price and quantity, then set the order.'},
+                        { element: '#learning-hub-btn', intro: 'Click the Learning Hub to understand advanced concepts like Stop-Loss orders.'},
+                        { element: '#portfolio-wrapper', intro: 'After you trade, your holdings and your profit/loss will appear here. Good luck!'}
+                    ],
+                    showStepNumbers: false,
+                    showBullets: false,
+                    exitOnOverlayClick: false,
+                    doneLabel: 'Finish Tutorial'
+                });
+
+                intro.oncomplete(startLiveTrading);
+                intro.onexit(startLiveTrading);
+                intro.start();
+            }
+
+            function startLiveTrading() {
+                appState = 'LIVE_TRADING';
+                tutorialStartModal.style.display = 'none';
+                if (typeof introJs !== 'undefined' && introJs()._currentStep) {
+                    introJs().exit();
+                }
+
+                userXP = 10000;
+                funds = getInitialFundsState(true);
+                pendingLimitOrders = [];
+                pendingStopLossOrders = [];
+                
+                updateAllUI();
+
+                if (marketSimulationInterval) {
+                    clearInterval(marketSimulationInterval);
+                }
+                marketSimulationInterval = setInterval(simulateMarket, 3000);
+                
+                showNotification('Live Trading Active', 'The tutorial is over. You are now trading with real XP in a live market!', 'success');
+            }
+
+            function updateAllUI() {
+                renderMarket();
+                renderPortfolio();
+                renderLimitOrders();
+                renderStopLossOrders();
+                updateXPDisplay();
+            }
+
+            // --- EVENT LISTENERS ---
+            startTutorialFlowBtn.addEventListener('click', startTutorial);
+            skipTutorialBtn.addEventListener('click', startLiveTrading);
+            learningHubBtn.addEventListener('click', () => learningModal.style.display = 'flex');
+            learningModalCloseBtn.addEventListener('click', () => learningModal.style.display = 'none');
+
+            promptSetStopLossBtn.addEventListener('click', () => {
+                const fundId = parseInt(promptStopLossFundIdEl.value);
+                const amount = parseInt(promptStopLossAmountEl.value);
+                const stopPrice = parseFloat(promptStopLossPriceEl.value);
+
+                if (createStopLossOrder(fundId, amount, stopPrice)) {
+                    promptStopLossPriceEl.value = '';
+                    stopLossPromptModal.style.display = 'none';
+                }
+            });
+
+            promptSkipStopLossBtn.addEventListener('click', () => {
+                promptStopLossPriceEl.value = '';
+                stopLossPromptModal.style.display = 'none';
+                showNotification('Purchase Complete', 'Your shares have been added to your portfolio.', 'success');
+            });
+
+            // --- INITIALIZATION ---
+            function init() {
+                tutorialStartModal.style.display = 'flex';
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
